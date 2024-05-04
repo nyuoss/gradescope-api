@@ -6,15 +6,12 @@ from sylveon._classes._login_helpers import (
     login_set_session_cookies,
 )
 
-from sylveon._classes._account import Account
-
 
 class GSConnection:
 
     def __init__(self):
         self.session = requests.Session()
         self.logged_in = False
-        self.account = None
 
     def login(self, email, password):
         # go to homepage to parse hidden authenticity token and to set initial "_gradescope_session" cookie
@@ -26,6 +23,5 @@ class GSConnection:
         )
         if login_success:
             self.logged_in = True
-            self.account = Account(self.session)
         else:
             raise ValueError("Invalid credentials.")

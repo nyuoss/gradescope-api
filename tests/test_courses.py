@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 import pytest
 
-from sylveon._classes._connection import GSConnection
+from sylveon._classes._account import Account
 
 # load .env file
 load_dotenv()
@@ -18,12 +18,13 @@ GRADESCOPE_CI_INSTRUCTOR_PASSWORD = os.getenv("GRADESCOPE_CI_INSTRUCTOR_PASSWORD
 
 def test_get_courses_student():
 
-    # create connection object
-    conn_student = GSConnection()
+    # create Account object
+    account = Account()
 
-    # login and fetch account
-    conn_student.login(GRADESCOPE_CI_STUDENT_EMAIL, GRADESCOPE_CI_STUDENT_PASSWORD)
-    account = conn_student.account
+    # login
+    account.connection.login(
+        GRADESCOPE_CI_STUDENT_EMAIL, GRADESCOPE_CI_STUDENT_PASSWORD
+    )
 
     # get courses
     courses = account.get_courses()
@@ -33,12 +34,13 @@ def test_get_courses_student():
 
 def test_get_courses_instructor():
 
-    # create connection object
-    conn_instr = GSConnection()
+    # create Account object
+    account = Account()
 
-    # login and fetch account
-    conn_instr.login(GRADESCOPE_CI_INSTRUCTOR_EMAIL, GRADESCOPE_CI_INSTRUCTOR_PASSWORD)
-    account = conn_instr.account
+    # login
+    account.connection.login(
+        GRADESCOPE_CI_INSTRUCTOR_EMAIL, GRADESCOPE_CI_INSTRUCTOR_PASSWORD
+    )
 
     # get courses
     courses = account.get_courses()
