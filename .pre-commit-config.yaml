@@ -1,21 +1,22 @@
+---
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v3.2.0
     hooks:
-    -   id: trailing-whitespace
-    -   id: end-of-file-fixer
-    -   id: check-yaml
-    -   id: check-added-large-files
-# export python requirements
--   repo: https://github.com/pdm-project/pdm
-    rev: 2.15.1 # a PDM release exposing the hook
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+  # export python requirements
+  - repo: https://github.com/pdm-project/pdm
+    rev: 2.15.1  # a PDM release exposing the hook
     hooks:
-    -   id: pdm-export
+      - id: pdm-export
         # command arguments, e.g.:
-        args: ['-o', 'requirements.txt', '--without-hashes']
+        args: [-o, requirements.txt, --without-hashes]
         files: ^pdm.lock$
-# format pyproject.toml file
-- repo: https://github.com/kieran-ryan/pyprojectsort
-  rev: v0.3.0
-  hooks:
-    - id: pyprojectsort
+  # format pyproject.toml file
+  - repo: https://github.com/kieran-ryan/pyprojectsort
+    rev: v0.3.0
+    hooks:
+      - id: pyprojectsort

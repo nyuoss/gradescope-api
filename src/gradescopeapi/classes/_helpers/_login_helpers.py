@@ -1,5 +1,5 @@
-from bs4 import BeautifulSoup
 import requests
+from bs4 import BeautifulSoup
 
 
 def get_auth_token_init_gradescope_session(session: requests.Session) -> str:

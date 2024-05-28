@@ -1,36 +1,34 @@
 import pytest
-from gradescopeapi.classes.connection import GSConnection
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
-
-GRADESCOPE_CI_STUDENT_EMAIL = os.getenv("GRADESCOPE_CI_STUDENT_EMAIL")
-GRADESCOPE_CI_STUDENT_PASSWORD = os.getenv("GRADESCOPE_CI_STUDENT_PASSWORD")
-GRADESCOPE_CI_INSTRUCTOR_EMAIL = os.getenv("GRADESCOPE_CI_INSTRUCTOR_EMAIL")
-GRADESCOPE_CI_INSTRUCTOR_PASSWORD = os.getenv("GRADESCOPE_CI_INSTRUCTOR_PASSWORD")
+from custom_skips import (
+    GRADESCOPE_CI_INSTRUCTOR_EMAIL,
+    GRADESCOPE_CI_INSTRUCTOR_PASSWORD,
+    GRADESCOPE_CI_STUDENT_EMAIL,
+    GRADESCOPE_CI_STUDENT_PASSWORD,
+    GRADESCOPE_CI_TA_EMAIL,
+    GRADESCOPE_CI_TA_PASSWORD,
+)
+from gradescopeapi.classes.connection import login
 
 
 @pytest.fixture
 def create_session():
     def _create_session(account_type: str = "student"):
         """Creates and returns a session for testing"""
-        connection = GSConnection()
 
         match account_type.lower():
             case "student":
-                connection.login(
+                return login(
                     GRADESCOPE_CI_STUDENT_EMAIL, GRADESCOPE_CI_STUDENT_PASSWORD
                 )
             case "instructor":
-                connection.login(
+                return login(
                     GRADESCOPE_CI_INSTRUCTOR_EMAIL, GRADESCOPE_CI_INSTRUCTOR_PASSWORD
                 )
+            case "ta":
+                return login(GRADESCOPE_CI_TA_EMAIL, GRADESCOPE_CI_TA_PASSWORD)
             case _:
                 raise ValueError(
-                    "Invalid account type: must be 'student' or 'instructor'"
+                    "Invalid account type: must be 'student' or 'instructor' or 'ta'"
                 )
-
-        return connection.session
 
     return _create_session

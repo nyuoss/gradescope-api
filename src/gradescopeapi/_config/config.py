@@ -2,9 +2,10 @@
 Configuration file for FastAPI. Specifies the specific objects and data models used in our api
 """
 
-from datetime import datetime
 import io
-from typing import List, Dict, Optional
+from datetime import datetime
+from typing import Optional
+
 from pydantic import BaseModel
 
 

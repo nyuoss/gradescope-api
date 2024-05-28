@@ -17,7 +17,7 @@ GRADESCOPE_CI_TA_PASSWORD
 
 For test cases to pass:
 
-Student accounts are expected to be accounts that are **only** enrolled as students in courses. Similarly, instructor accounts are expected to **only** be instructors for courses. TA accounts are expected to be **both**. Tests can also be skipped by using the pytest decorator ```@pytest.mark.skip(reason="...")```
+Student accounts are expected to be accounts that are **only** enrolled as students in courses. Similarly, instructor accounts are expected to **only** be instructors for courses. TA accounts are expected to be **both**. Tests can also be skipped by using the pytest decorator `@pytest.mark.skip(reason="...")`
 
 ### Running Tests Locally
 

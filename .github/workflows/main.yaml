@@ -1,49 +1,35 @@
+---
 name: Deploy API and Automate Tests
-
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
-
+    branches: [main]
 jobs:
   deploy-and-test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: 3.12
-
       - name: Setup PDM
         uses: pdm-project/setup-pdm@v4
-
       - name: Install PDM dependencies and initialize project repository
         run: pdm install
-
       - name: Activate Virtual Environment
         run: pdm venv activate
-
       - name: Install pip and other dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install types-beautifulsoup4 types-requests
           pip install -r requirements.txt
-
       - name: Format code
         run: pdm format
-
-      # - name: Lint code
-      #   run: pdm lint
-
-      - name: Start project
-        run: pdm run start
-
+      - name: Lint code
+        run: pdm lint
       - name: Run Tests
         run: pdm test
         env:

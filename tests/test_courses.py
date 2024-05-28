@@ -1,90 +1,61 @@
-import os
-from dotenv import load_dotenv
-
-from gradescopeapi.classes.connection import GSConnection
-
-# load .env file
-load_dotenv()
-GRADESCOPE_CI_STUDENT_EMAIL = os.getenv("GRADESCOPE_CI_STUDENT_EMAIL")
-GRADESCOPE_CI_STUDENT_PASSWORD = os.getenv("GRADESCOPE_CI_STUDENT_PASSWORD")
-GRADESCOPE_CI_INSTRUCTOR_EMAIL = os.getenv("GRADESCOPE_CI_INSTRUCTOR_EMAIL")
-GRADESCOPE_CI_INSTRUCTOR_PASSWORD = os.getenv("GRADESCOPE_CI_INSTRUCTOR_PASSWORD")
-GRADESCOPE_CI_TA_EMAIL = os.getenv("GRADESCOPE_CI_TA_EMAIL")
-GRADESCOPE_CI_TA_PASSWORD = os.getenv("GRADESCOPE_CI_TA_PASSWORD")
+from custom_skips import instructor, student, ta
+from gradescopeapi.classes.courses import get_course_users, get_courses
 
 
-def get_account(account_type="student"):
-    """Creates a connection and returns the account for testing"""
-    connection = GSConnection()
-
-    match account_type.lower():
-        case "student":
-            connection.login(
-                GRADESCOPE_CI_STUDENT_EMAIL, GRADESCOPE_CI_STUDENT_PASSWORD
-            )
-        case "instructor":
-            connection.login(
-                GRADESCOPE_CI_INSTRUCTOR_EMAIL, GRADESCOPE_CI_INSTRUCTOR_PASSWORD
-            )
-        case "ta":
-            connection.login(GRADESCOPE_CI_TA_EMAIL, GRADESCOPE_CI_TA_PASSWORD)
-        case _:
-            raise ValueError(
-                "Invalid account type: must be 'student' or 'instructor' or 'ta'"
-            )
-
-    return connection.account
-
-
-def test_get_courses_student():
+@student
+def test_get_courses_student(create_session):
     # fetch student account
-    account = get_account("student")
+    session = create_session("student")
 
     # get student courses
-    courses = account.get_courses()
+    courses = get_courses(session)
 
     assert courses["instructor"] == {} and courses["student"] != {}
 
 
-def test_get_courses_instructor():
+@instructor
+def test_get_courses_instructor(create_session):
     # fetch instructor account
-    account = get_account("instructor")
+    session = create_session("instructor")
 
     # get instructor courses
-    courses = account.get_courses()
+    courses = get_courses(session)
 
     assert courses["instructor"] != {} and courses["student"] == {}
 
 
-def test_get_courses_ta():
+@ta
+def test_get_courses_ta(create_session):
     # fetch ta account
-    account = get_account("ta")
+    session = create_session("ta")
 
     # get ta courses
-    courses = account.get_courses()
+    courses = get_courses(session)
 
     assert courses["instructor"] != {} and courses["student"] != {}
 
 
-def test_membership_invalid():
+@instructor
+def test_membership_invalid(create_session):
     # fetch instructor account
-    account = get_account("instructor")
+    session = create_session("instructor")
 
     invalid_course_id = "1111111"
 
     # get course members
-    members = account.get_course_users(invalid_course_id)
+    members = get_course_users(session, invalid_course_id)
 
     assert members is None
 
 
-def test_membership():
+@instructor
+def test_membership(create_session):
     # fetch instructor account
-    account = get_account("instructor")
+    session = create_session("instructor")
 
     course_id = "753413"
 
     # get course members
-    members = account.get_course_users(course_id)
+    members = get_course_users(session, course_id)
 
     assert members is not None and len(members) > 0

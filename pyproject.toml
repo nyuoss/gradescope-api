@@ -18,6 +18,7 @@ classifiers = [
 dependencies = [
     "beautifulsoup4>=4.12.3",
     "fastapi>=0.111.0",
+    "pyjwt[crypto]>=2.8.0",
     "pytest>=8.2.0",
     "python-dotenv>=1.0.1",
     "requests-toolbelt>=1.0.0",
@@ -32,6 +33,9 @@ readme = "README.md"
 requires-python = ">=3.12"
 version = "1.0.0"
 
+[project.gui-scripts]
+gradescopeapi = "gradescopeapi.api.app:main"
+
 [project.license]
 text = "MIT"
 
@@ -45,16 +49,37 @@ distribution = true
 
 [tool.pdm.dev-dependencies]
 dev = [
+    "mdformat>=0.7.17",
     "mypy>=1.8.0",
     "pre-commit>=3.7.0",
     "ruff>=0.4.3",
+    "yamlfix>=1.16.0",
 ]
 
 [tool.pdm.scripts]
+dev = "fastapi dev src/gradescopeapi/api/api.py"
 export = "pdm export -f requirements -o requirements.txt --without-hashes"
-format = "ruff format src tests"
-format-test = "ruff format --check src tests"
-lint = "ruff check src tests"
-lint-fix = "ruff check --fix src tests"
-start = "python -m gradescopeapi"
+format-markdown = "mdformat ."
+format-markdown-check = "mdformat --check ."
+format-python = "ruff format src tests"
+format-python-check = "ruff format --check src tests"
+format-yaml = "yamlfix ."
+format-yaml-check = "yamlfix --check ."
+lint = "ruff check --extend-select I src tests"
+lint-fix = "ruff check --extend-select I --fix src tests"
+start = "fastapi run src/gradescopeapi/api/app.py"
 test = "pytest tests"
+
+[tool.pdm.scripts.format]
+composite = [
+    "format-markdown",
+    "format-python",
+    "format-yaml",
+]
+
+[tool.pdm.scripts.format-check]
+composite = [
+    "format-markdown-check",
+    "format-python-check",
+    "format-yaml-check",
+]

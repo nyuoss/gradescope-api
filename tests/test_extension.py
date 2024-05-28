@@ -1,9 +1,11 @@
-import pytest
 from datetime import datetime, timedelta
 
+import pytest
+from custom_skips import instructor
 from gradescopeapi.classes.extensions import get_extensions, update_student_extension
 
 
+@instructor
 def test_get_extensions(create_session):
     """Test fetching extensions for an assignment."""
     # create test session
@@ -18,6 +20,7 @@ def test_get_extensions(create_session):
     ), f"Got 0 extensions for course {course_id} and assignment {assignment_id}"
 
 
+@instructor
 def test_valid_change_extension(create_session):
     """Test granting a valid extension for a student."""
     # create test session
@@ -42,6 +45,7 @@ def test_valid_change_extension(create_session):
     assert result, "Failed to update student extension"
 
 
+@instructor
 def test_invalid_change_extension(create_session):
     """Test granting an invalid extension for a student due to invalid dates."""
     # create test session
@@ -69,6 +73,7 @@ def test_invalid_change_extension(create_session):
         )
 
 
+@instructor
 def test_invalid_user_id(create_session):
     """Test granting an invalid extension for a student due to invalid user ID."""
     test_session = create_session("instructor")
@@ -92,6 +97,7 @@ def test_invalid_user_id(create_session):
     assert not result, "Function should indicate failure when given an invalid user ID"
 
 
+@instructor
 def test_invalid_assignment_id(create_session):
     """Test extension handling with an invalid assignment ID."""
     test_session = create_session("instructor")
@@ -103,6 +109,7 @@ def test_invalid_assignment_id(create_session):
         get_extensions(test_session, course_id, invalid_assignment_id)
 
 
+@instructor
 def test_invalid_course_id(create_session):
     """Test extension handling with an invalid course ID."""
     test_session = create_session("instructor")
@@ -111,4 +118,3 @@ def test_invalid_course_id(create_session):
     # Attempt to fetch or modify extensions with an invalid course ID
     with pytest.raises(RuntimeError, match="Failed to get extensions"):
         get_extensions(test_session, invalid_course_id, "4330410")
-        

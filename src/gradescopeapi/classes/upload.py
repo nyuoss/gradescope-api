@@ -1,11 +1,12 @@
 """Functions for uploading assignments to Gradescope."""
 
+import io
+import mimetypes
+import pathlib
+
 import requests
 from bs4 import BeautifulSoup
 from requests_toolbelt.multipart.encoder import MultipartEncoder
-import mimetypes
-import io
-import pathlib
 
 
 def upload_assignment(
