@@ -121,8 +121,11 @@ def get_course_members(soup: BeautifulSoup, course_id: str) -> list[Member]:
     # name, email, role, sections?, submissions, edit, remove
     # if course has sections, section column is added before number of submissions column
     headers = soup.find("table", class_="js-rosterTable").find_all("th")
-    has_sections = any(h.text.startswith("Sections") for h in headers)
-    num_submissions_column = 4 if has_sections else 3
+    num_submissions_column = -1
+    for i, h in enumerate(headers):
+        if h.text.lower().startswith("submissions"):
+            num_submissions_column = i
+            break
 
     member_list = []
 
@@ -169,7 +172,9 @@ def get_course_members(soup: BeautifulSoup, course_id: str) -> list[Member]:
             user_id = data_url.split("user_id=")[-1]
 
         # fetch number of submissions from table cell
-        num_submissions = int(cells[num_submissions_column].text)
+        num_submissions = (
+            0 if num_submissions_column < 0 else int(cells[num_submissions_column].text)
+        )
 
         # create Member object with all relevant info
         member_list.append(
