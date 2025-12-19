@@ -1,3 +1,4 @@
+import requests
 from datetime import datetime
 
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -13,41 +14,40 @@ from gradescopeapi.classes.upload import upload_assignment
 
 app = FastAPI()
 
-# Create instance of GSConnection, to be used where needed
-connection = GSConnection()
+# Use a lazy-loaded singleton pattern to manage the connection object.
+# This prevents the object from being created on module import, which
+# avoids state corruption when the library is used by external scripts.
+_connection = None
 
 
 def get_gs_connection():
     """
-    Returns the GSConnection instance
-
-    Returns:
-        connection (GSConnection): an instance of the GSConnection class,
-            containing the session object used to make HTTP requests,
-            a boolean defining True/False if the user is logged in, and
-            the user's Account object.
+    Returns a singleton GSConnection instance for the API.
+    The connection is lazy-loaded on the first request.
     """
-    return connection
+    global _connection
+    if _connection is None:
+        _connection = GSConnection()
+    return _connection
 
 
-def get_gs_connection_session():
+def get_gs_connection_session(
+    gs_connection: GSConnection = Depends(get_gs_connection),
+) -> requests.Session:
     """
-    Returns session of the the GSConnection instance
-
-    Returns:
-        connection.session (GSConnection.session): an instance of the GSConnection class' session object used to make HTTP requests
+    Returns session of the the GSConnection instance.
     """
-    return connection.session
+    return gs_connection.session
 
 
-def get_account():
+def get_current_account(
+    gs_connection: GSConnection = Depends(get_gs_connection),
+) -> Account:
     """
-    Returns the user's Account object
-
-    Returns:
-        Account (Account): an instance of the Account class, containing
-            methods for interacting with the user's courses and assignments.
+    Returns the user's Account object from the connection.
+    Raises an exception if the user is not logged in.
     """
+<<<<<<< Updated upstream
     return Account(session=get_gs_connection_session)
 
 
@@ -55,6 +55,11 @@ def get_account():
 connection = GSConnection()
 
 account = None
+=======
+    if not gs_connection.logged_in or not gs_connection.account:
+        raise HTTPException(status_code=401, detail="User not logged in.")
+    return gs_connection.account
+>>>>>>> Stashed changes
 
 
 @app.get("/")
@@ -80,16 +85,14 @@ def login(
     password = login_data.password
 
     try:
-        connection.login(user_email, password)
-        global account
-        account = connection.account
+        gs_connection.login(user_email, password)
         return {"message": "Login successful", "status_code": status.HTTP_200_OK}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=f"Account not found. Error {e}")
 
 
 @app.post("/courses", response_model=dict[str, dict[str, Course]])
-def get_courses():
+def get_courses(account: Account = Depends(get_current_account)):
     """Get all courses for the user
 
     Args:
@@ -109,7 +112,7 @@ def get_courses():
 
 
 @app.post("/course_users", response_model=list[Member])
-def get_course_users(course_id: str):
+def get_course_users(course_id: str, account: Account = Depends(get_current_account)):
     """Get all users for a course. ONLY FOR INSTRUCTORS.
 
     Args:
@@ -122,7 +125,7 @@ def get_course_users(course_id: str):
         HTTPException: If the request to get courses fails, with a 500 Internal Server Error status code and the error message.
     """
     try:
-        course_list = connection.account.get_course_users(course_id)
+        course_list = account.get_course_users(course_id)
         print(course_list)
         return course_list
     except RuntimeError as e:
@@ -130,7 +133,7 @@ def get_course_users(course_id: str):
 
 
 @app.post("/assignments", response_model=list[Assignment])
-def get_assignments(course_id: str):
+def get_assignments(course_id: str, account: Account = Depends(get_current_account)):
     """Get all assignments for a course. ONLY FOR INSTRUCTORS.
         list: list of user emails
 
@@ -138,7 +141,7 @@ def get_assignments(course_id: str):
         HTTPException: If the request to get course users fails, with a 500 Internal Server Error status code and the error message.
     """
     try:
-        course_users = connection.account.get_assignments(course_id)
+        course_users = account.get_assignments(course_id)
         return course_users
     except RuntimeError as e:
         raise HTTPException(
@@ -150,6 +153,7 @@ def get_assignments(course_id: str):
 def get_assignment_submissions(
     course_id: str,
     assignment_id: str,
+    account: Account = Depends(get_current_account),
 ):
     """Get all assignment submissions for an assignment. ONLY FOR INSTRUCTORS.
 
@@ -164,7 +168,7 @@ def get_assignment_submissions(
         HTTPException: If the request to get assignments fails, with a 500 Internal Server Error status code and the error message.
     """
     try:
-        assignment_list = connection.account.get_assignment_submissions(
+        assignment_list = account.get_assignment_submissions(
             course_id=course_id, assignment_id=assignment_id
         )
         return assignment_list
@@ -176,7 +180,10 @@ def get_assignment_submissions(
 
 @app.post("/single_assignment_submission", response_model=list[str])
 def get_student_assignment_submission(
-    student_email: str, course_id: str, assignment_id: str
+    student_email: str,
+    course_id: str,
+    assignment_id: str,
+    account: Account = Depends(get_current_account),
 ):
     """Get a student's assignment submission. ONLY FOR INSTRUCTORS.
 
@@ -192,7 +199,7 @@ def get_student_assignment_submission(
         HTTPException: If the request to get assignment submissions fails, with a 500 Internal Server Error status code and the error message.
     """
     try:
-        assignment_submissions = connection.account.get_assignment_submission(
+        assignment_submissions = account.get_assignment_submission(
             student_email=student_email,
             course_id=course_id,
             assignment_id=assignment_id,
@@ -211,6 +218,7 @@ def update_assignment_dates(
     release_date: datetime,
     due_date: datetime,
     late_due_date: datetime,
+    gs_session: requests.Session = Depends(get_gs_connection_session),
 ):
     """
     Update the release and due dates for an assignment. ONLY FOR INSTRUCTORS.
@@ -235,7 +243,7 @@ def update_assignment_dates(
     try:
         print(f"late due date {late_due_date}")
         success = update_assignment_date(
-            session=connection.session,
+            session=gs_session,
             course_id=course_id,
             assignment_id=assignment_id,
             release_date=release_date,
@@ -256,7 +264,11 @@ def update_assignment_dates(
 
 
 @app.post("/assignments/extensions", response_model=dict)
-def get_assignment_extensions(course_id: str, assignment_id: str):
+def get_assignment_extensions(
+    course_id: str,
+    assignment_id: str,
+    gs_session: requests.Session = Depends(get_gs_connection_session),
+):
     """
     Get all extensions for an assignment.
 
@@ -272,7 +284,7 @@ def get_assignment_extensions(course_id: str, assignment_id: str):
     """
     try:
         extensions = get_extensions(
-            session=connection.session,
+            session=gs_session,
             course_id=course_id,
             assignment_id=assignment_id,
         )
@@ -289,6 +301,7 @@ def update_extension(
     release_date: datetime,
     due_date: datetime,
     late_due_date: datetime,
+    gs_session: requests.Session = Depends(get_gs_connection_session),
 ):
     """
     Update the extension for a student on an assignment. ONLY FOR INSTRUCTORS.
@@ -311,7 +324,7 @@ def update_extension(
     """
     try:
         success = update_student_extension(
-            session=connection.session,
+            session=gs_session,
             course_id=course_id,
             assignment_id=assignment_id,
             user_id=user_id,
@@ -334,7 +347,11 @@ def update_extension(
 
 @app.post("/assignments/upload")
 def upload_assignment_files(
-    course_id: str, assignment_id: str, leaderboard_name: str, file: FileUploadModel
+    course_id: str,
+    assignment_id: str,
+    leaderboard_name: str,
+    file: FileUploadModel,
+    gs_session: requests.Session = Depends(get_gs_connection_session),
 ):
     """
     Upload files for an assignment.
@@ -359,7 +376,7 @@ def upload_assignment_files(
     """
     try:
         submission_link = upload_assignment(
-            session=connection.session,
+            session=gs_session,
             course_id=course_id,
             assignment_id=assignment_id,
             files=file,
