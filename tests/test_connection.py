@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from gradescopeapi.classes._helpers._login_helpers import (
     get_auth_token_init_gradescope_session,
     login_set_session_cookies,
+    logout_session,
 )
 
 # load .env file
@@ -72,3 +73,45 @@ def test_login_set_session_cookies_incorrect_creds():
     cookie_check = set(cookies.keys()).issuperset({"_gradescope_session"})
 
     assert login_check and cookie_check
+
+
+def test_logout_session():
+    # create test session and call the helper (completes without raising)
+    test_session = requests.Session()
+    logout_session(test_session)
+
+
+def test_login_logout_session():
+    """Tests logging in and logging out."""
+    # login
+    test_session = requests.Session()
+    auth_token = get_auth_token_init_gradescope_session(test_session)
+    login_check = login_set_session_cookies(
+        test_session,
+        GRADESCOPE_CI_STUDENT_EMAIL,
+        GRADESCOPE_CI_STUDENT_PASSWORD,
+        auth_token,
+    )
+    cookies = requests.utils.dict_from_cookiejar(test_session.cookies)
+    cookie_check = set(cookies.keys()).issuperset(
+        {
+            "_gradescope_session",
+            "signed_token",
+            "remember_me",
+        }
+    )
+    assert login_check and cookie_check
+
+    # logout
+    logout_session(test_session)
+
+    # check login cookies cleared
+    cookies = requests.utils.dict_from_cookiejar(test_session.cookies)
+    cookie_check = set(cookies.keys()).issuperset(
+        {
+            "_gradescope_session",
+            "signed_token",
+            "remember_me",
+        }
+    )
+    assert not cookie_check

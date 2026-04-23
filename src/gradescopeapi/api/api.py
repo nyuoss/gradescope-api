@@ -88,6 +88,15 @@ def login(
         raise HTTPException(status_code=404, detail=f"Account not found. Error {e}")
 
 
+@app.post("/logout", name="logout")
+def logout(gs_connection: GSConnection = Depends(get_gs_connection)):
+    """Log out from Gradescope and clear the connection state."""
+    gs_connection.logout()
+    global account
+    account = None
+    return {"message": "Logout successful", "status_code": status.HTTP_200_OK}
+
+
 @app.post("/courses", response_model=dict[str, dict[str, Course]])
 def get_courses():
     """Get all courses for the user

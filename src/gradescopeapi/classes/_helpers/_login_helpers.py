@@ -61,3 +61,15 @@ def login_set_session_cookies(
         session.headers.update({"X-CSRF-Token": csrf_token})
         return True
     return False
+
+
+def logout_session(
+    session: requests.Session,
+    gradescope_base_url: str = DEFAULT_GRADESCOPE_BASE_URL,
+) -> None:
+    """Call Gradescope /logout to terminate the session server-side."""
+    GS_LOGOUT_ENDPOINT = f"{gradescope_base_url}/logout"
+    try:
+        session.get(GS_LOGOUT_ENDPOINT)
+    except Exception:
+        pass
