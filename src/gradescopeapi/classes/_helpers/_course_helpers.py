@@ -118,11 +118,10 @@ def get_course_members(soup: BeautifulSoup, course_id: str) -> list[Member]:
     """
 
     # assumed ordering
-    # name, email, role, sections?, submissions, edit, remove
-    # if course has sections, section column is added before number of submissions column
+    # (name | first name, last name), email, role, sections?, submissions, edit, remove
+    # submissions column should always be 3rd to last column
     headers = soup.find("table", class_="js-rosterTable").find_all("th")
-    has_sections = any(h.text.startswith("Sections") for h in headers)
-    num_submissions_column = 4 if has_sections else 3
+    num_submissions_column = max(len(headers) - 3, 3)
 
     member_list = []
 
