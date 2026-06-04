@@ -179,15 +179,28 @@ def get_submission_files(
         f"{gradescope_base_url}/courses/{course_id}/assignments/{assignment_id}"
     )
 
-    file_info_link = f"{ASSIGNMENT_ENDPOINT}/submissions/{submission_id}.json?content=react&only_keys[]=text_files&only_keys[]=file_comments"
+    file_info_link = (
+        f"{ASSIGNMENT_ENDPOINT}/submissions/{submission_id}.json?content=react"
+        "&only_keys[]=text_files&only_keys[]=file_comments"
+        "&only_keys[]=pdf_attachment&only_keys[]=image_attachments"
+    )
     file_info_resp = session.get(file_info_link)
+    aws_links = []
     if file_info_resp.status_code == requests.codes.ok:
         file_info_json = json.loads(file_info_resp.text)
         if file_info_json.get("text_files"):
-            aws_links = []
+            # autograder / code submissions
             for file_data in file_info_json["text_files"]:
                 aws_links.append(file_data["file"]["url"])
+        elif file_info_json.get("pdf_attachment", {}).get("url"):
+            # PDF / image submissions: Gradescope stores the student's original
+            # upload as a single combined pdf_attachment (the un-annotated file).
+            aws_links.append(file_info_json["pdf_attachment"]["url"])
+        elif file_info_json.get("image_attachments"):
+            # fallback: individual image files when there is no combined PDF
+            for image in file_info_json["image_attachments"]:
+                if image.get("url"):
+                    aws_links.append(image["url"])
         else:
-            raise NotImplementedError("Image only submissions not yet supported")
-        # TODO add support for image questions
+            raise NotImplementedError("Submission has no downloadable files")
     return aws_links
