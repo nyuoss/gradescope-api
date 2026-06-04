@@ -167,8 +167,13 @@ def get_course_members(soup: BeautifulSoup, course_id: str) -> list[Member]:
             data_url: str = rosterName_button.get("data-url", None)
             user_id = data_url.split("user_id=")[-1]
 
-        # fetch number of submissions from table cell
-        num_submissions = int(cells[num_submissions_column].text)
+        # fetch number of submissions from table cell. Some roster layouts have
+        # extra trailing action columns, so the heuristic column index can land
+        # on an empty/non-numeric cell; default to 0 rather than raising.
+        try:
+            num_submissions = int(cells[num_submissions_column].text)
+        except (ValueError, IndexError):
+            num_submissions = 0
 
         # create Member object with all relevant info
         member_list.append(
