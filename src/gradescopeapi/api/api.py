@@ -1,10 +1,23 @@
 from datetime import datetime
 
-from fastapi import Depends, FastAPI, HTTPException, status
+import requests
+from fastapi import Depends, FastAPI, Form, HTTPException, UploadFile, status
 
-from gradescopeapi._config.config import FileUploadModel, LoginRequestModel
+from gradescopeapi._config.config import (
+    CreateAssignment,
+    FileUploadModel,
+    LoginRequestModel,
+    RubricLockingSetting,
+    StudentSubmissionSettings,
+    WhenToCreateRubric,
+)
 from gradescopeapi.classes.account import Account
-from gradescopeapi.classes.assignments import Assignment, update_assignment_date
+from gradescopeapi.classes.assignments import (
+    Assignment,
+    AssignmentUpdateError,
+    create_assignment,
+    update_assignment_date,
+)
 from gradescopeapi.classes.connection import GSConnection
 from gradescopeapi.classes.courses import Course
 from gradescopeapi.classes.extensions import get_extensions, update_student_extension
@@ -378,5 +391,101 @@ def upload_assignment_files(
             return {"submission_link": submission_link}
         else:
             raise HTTPException(status_code=400, detail="Upload unsuccessful")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/assignments/create")
+def create_new_assignment(
+    course_id: str = Form(...),
+    title: str = Form(...),
+    submissions_anonymized: bool = Form(False),
+    student_submission: bool = Form(False),
+    student_submission_settings: str | None = Form(None),
+    when_to_create_rubric: WhenToCreateRubric = Form(WhenToCreateRubric.WHILE_GRADING),
+    rubric_locking_setting: RubricLockingSetting = Form(RubricLockingSetting.ALL_EDIT),
+    template_pdf: UploadFile | None = None,
+):
+    """
+    Create a new assignment in a course. The session must have instructor privileges.
+
+    The student_submission_settings field is a JSON string describing the
+    StudentSubmissionSettings model (release_date, due_date, submission_type, etc.).
+
+    Args:
+        course_id (str): The ID of the course.
+        title (str): The title of the new assignment.
+        submissions_anonymized (bool, optional): Anonymize submissions. Defaults to False.
+        student_submission (bool, optional): Whether students submit. Defaults to False.
+        student_submission_settings (str | None, optional): JSON settings. Defaults to None.
+        when_to_create_rubric (WhenToCreateRubric, optional): Rubric timing. Defaults to WHILE_GRADING.
+        rubric_locking_setting (RubricLockingSetting, optional): Rubric locking. Defaults to ALL_EDIT.
+        template_pdf (UploadFile | None, optional): Template PDF file. Defaults to None.
+
+    Returns:
+        dict: A dictionary containing the new assignment ID.
+
+    Raises:
+        HTTPException: 400 if validation or creation fails, 500 on unexpected errors.
+    """
+    settings = None
+    if student_submission_settings:
+        settings = StudentSubmissionSettings.model_validate_json(
+            student_submission_settings
+        )
+
+    try:
+        create_data = CreateAssignment(
+            course_id=course_id,
+            title=title,
+            submissions_anonymized=submissions_anonymized,
+            student_submission=student_submission,
+            student_submission_settings=settings,
+            when_to_create_rubric=when_to_create_rubric,
+            rubric_locking_setting=rubric_locking_setting,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    pdf_file = template_pdf.file if template_pdf else None
+    pdf_filename = template_pdf.filename if template_pdf else None
+    if pdf_file is not None:
+        pdf_file.seek(0, 2)  # seek to end to get file size
+        file_size = pdf_file.tell()
+        pdf_file.seek(0)  # rewind to start
+        if file_size > 50 * 1024 * 1024:  # 50 MB limit
+            raise HTTPException(
+                status_code=413,
+                detail=f"Template PDF size {file_size} bytes exceeds 50 MB limit",
+            )
+
+    try:
+        assignment_id = create_assignment(
+            session=connection.session,
+            course_id=create_data.course_id,
+            title=create_data.title,
+            template_pdf=pdf_file,
+            template_pdf_filename=pdf_filename,
+            submissions_anonymized=create_data.submissions_anonymized,
+            student_submission=create_data.student_submission,
+            student_submission_settings=create_data.student_submission_settings,
+            when_to_create_rubric=create_data.when_to_create_rubric,
+            rubric_locking_setting=create_data.rubric_locking_setting,
+        )
+        return {
+            "assignment_id": assignment_id,
+            "status_code": status.HTTP_200_OK,
+        }
+    except AssignmentUpdateError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except requests.HTTPError as e:
+        raise HTTPException(
+            status_code=e.response.status_code
+            if e.response is not None
+            else status.HTTP_502_BAD_GATEWAY,
+            detail=str(e),
+        )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -168,7 +168,8 @@ def get_course_members(soup: BeautifulSoup, course_id: str) -> list[Member]:
             user_id = data_url.split("user_id=")[-1]
 
         # fetch number of submissions from table cell
-        num_submissions = int(cells[num_submissions_column].text)
+        raw = cells[num_submissions_column].text.strip()
+        num_submissions = int(raw) if raw else 0
 
         # create Member object with all relevant info
         member_list.append(

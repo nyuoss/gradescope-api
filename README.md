@@ -21,6 +21,7 @@ Implemented Features Include:
 - Add/remove/modify extensions for an assignment in a course
 - Add/remove/modify dates for an assignment in a course
 - Upload submissions to assignments
+- Create new assignments
 - API server to interact with library without Python
 
 ## Demo
