@@ -4,7 +4,12 @@ from gradescopeapi.classes.assignments import (
     update_assignment_date,
     update_assignment_title,
     update_autograder_image_name,
+    update_assignment_outline,
     InvalidTitleName,
+    AssignmentOutline,
+    IdentificationRegions,
+    QuestionData,
+    CropRect,
 )
 import requests
 import uuid
@@ -202,5 +207,76 @@ def test_update_assignment_title_invalid_session(create_session):
             new_assignment_name,
         )
         assert False, "Incorrectly updated assignment title with invalid session"
+    except requests.exceptions.HTTPError as e:
+        assert e.response.status_code == 401  # HTTP 401 Not Authorized
+
+
+def test_default_crop_rect(create_session):
+    """Test that QuestionData defaults to the standard crop rectangle."""
+    question = QuestionData(title="Question 1", weight=5)
+    assert question.crop_rect_list == [CropRect(x1=0, x2=100, y1=90, y2=100)]
+
+
+def test_valid_change_assignment_outline(create_session):
+    """Test updating assignment outline with valid question data."""
+    test_session = create_session("instructor")
+
+    course_id = "753413"
+    assignment_id = "7193007"
+    outline = AssignmentOutline(
+        question_data=[
+            QuestionData(
+                title="Question 1",
+                weight=5,
+                crop_rect_list=[
+                    CropRect(x1=0, x2=100, y1=90, y2=100),
+                ],
+            ),
+            QuestionData(
+                title="Question 2",
+                weight=5,
+                crop_rect_list=[
+                    CropRect(x1=0, x2=100, y1=90, y2=100),
+                ],
+            ),
+        ],
+        identification_regions=IdentificationRegions(name=None, sid=None),
+    )
+
+    result = update_assignment_outline(
+        test_session,
+        course_id,
+        assignment_id,
+        outline,
+    )
+    assert result, "Failed to update assignment outline"
+
+
+def test_update_assignment_outline_invalid_session(create_session):
+    """Test updating assignment outline with student session."""
+    test_session = create_session("student")
+
+    course_id = "753413"
+    assignment_id = "7193007"
+    outline = AssignmentOutline(
+        question_data=[
+            QuestionData(
+                title="Question 1",
+                weight=5,
+                crop_rect_list=[
+                    CropRect(x1=0, x2=100, y1=90, y2=100),
+                ],
+            ),
+        ],
+    )
+
+    try:
+        update_assignment_outline(
+            test_session,
+            course_id,
+            assignment_id,
+            outline,
+        )
+        assert False, "Incorrectly updated assignment outline with invalid session"
     except requests.exceptions.HTTPError as e:
         assert e.response.status_code == 401  # HTTP 401 Not Authorized

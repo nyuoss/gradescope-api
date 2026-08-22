@@ -3,7 +3,7 @@
 import datetime
 import re
 import pathlib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, BinaryIO
 
 import requests
@@ -36,6 +36,35 @@ class Assignment:
     submissions_status: str
     grade: str
     max_grade: str
+
+
+@dataclass
+class CropRect:
+    x1: int
+    x2: int
+    y1: int
+    y2: int
+
+
+@dataclass
+class QuestionData:
+    title: str
+    weight: int
+    crop_rect_list: list[CropRect] = field(
+        default_factory=lambda: [CropRect(x1=0, x2=100, y1=90, y2=100)]
+    )
+
+
+@dataclass
+class IdentificationRegions:
+    name: str | None = None
+    sid: str | None = None
+
+
+@dataclass
+class AssignmentOutline:
+    question_data: list[QuestionData]
+    identification_regions: IdentificationRegions | None = None
 
 
 def update_assignment_date(
@@ -243,6 +272,92 @@ def update_autograder_image_name(
     return response.status_code == 200 and not soup.find(
         string="Docker image not found in your current course!"
     )
+
+
+def update_assignment_outline(
+    session: requests.Session,
+    course_id: str,
+    assignment_id: str,
+    assignment_outline: AssignmentOutline,
+    gradescope_base_url: str = DEFAULT_GRADESCOPE_BASE_URL,
+) -> bool:
+    """Update the outline of an assignment on Gradescope.
+
+    Args:
+        session (requests.Session): The session object for making HTTP requests.
+        course_id (str): The ID of the course.
+        assignment_id (str): The ID of the assignment.
+        assignment_outline (AssignmentOutline): The new outline to apply, containing
+            the identification regions and question data (titles, weights, and crop
+            rectangles).
+
+    Notes:
+        Crop rectangle coordinates are percentages (0-100) of the page dimensions.
+
+    Raises:
+        AssignmentUpdateError: If the CSRF token is not found on the outline page.
+        requests.exceptions.HTTPError: If the request fails (e.g. 401 Unauthorized).
+
+    Returns:
+        bool: True if the assignment outline was successfully updated, False otherwise.
+    """
+    GS_OUTLINE_ENDPOINT_BASE = (
+        f"{gradescope_base_url}/courses/{course_id}/assignments/{assignment_id}/outline"
+    )
+    GS_OUTLINE_ENDPOINT = f"{GS_OUTLINE_ENDPOINT_BASE}/"
+    GS_OUTLINE_EDIT_ENDPOINT = f"{GS_OUTLINE_ENDPOINT_BASE}/edit"
+
+    # Get auth token from the outline page
+    response = session.get(GS_OUTLINE_EDIT_ENDPOINT, timeout=(5, 30))
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, "html.parser")
+    csrf_meta = soup.select_one('meta[name="csrf-token"]')
+    if csrf_meta is None:
+        raise AssignmentUpdateError(
+            "CSRF token not found on /outline page. "
+            "Session may be unauthenticated or the page layout has changed."
+        )
+    auth_token = csrf_meta["content"]
+
+    body = {
+        "assignment": {
+            "identification_regions": {
+                "name": (
+                    assignment_outline.identification_regions.name
+                    if assignment_outline.identification_regions
+                    else None
+                ),
+                "sid": (
+                    assignment_outline.identification_regions.sid
+                    if assignment_outline.identification_regions
+                    else None
+                ),
+            }
+        },
+        "question_data": [
+            {
+                "title": question.title,
+                "weight": question.weight,
+                "crop_rect_list": [
+                    {
+                        "x1": crop_rect.x1,
+                        "x2": crop_rect.x2,
+                        "y1": crop_rect.y1,
+                        "y2": crop_rect.y2,
+                    }
+                    for crop_rect in question.crop_rect_list
+                ],
+            }
+            for question in assignment_outline.question_data
+        ],
+    }
+
+    headers = {"X-CSRF-Token": auth_token, "Referer": GS_OUTLINE_EDIT_ENDPOINT}
+
+    response = session.patch(GS_OUTLINE_ENDPOINT, json=body, headers=headers)
+    response.raise_for_status()
+
+    return response.status_code == 200
 
 
 def create_assignment(

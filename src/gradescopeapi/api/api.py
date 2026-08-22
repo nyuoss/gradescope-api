@@ -4,6 +4,7 @@ import requests
 from fastapi import Depends, FastAPI, Form, HTTPException, UploadFile, status
 
 from gradescopeapi._config.config import (
+    AssignmentOutline,
     CreateAssignment,
     FileUploadModel,
     LoginRequestModel,
@@ -14,9 +15,14 @@ from gradescopeapi._config.config import (
 from gradescopeapi.classes.account import Account
 from gradescopeapi.classes.assignments import (
     Assignment,
+    AssignmentOutline as AssignmentOutlineData,
     AssignmentUpdateError,
+    CropRect as CropRectData,
+    IdentificationRegions as IdentificationRegionsData,
+    QuestionData as QuestionDataData,
     create_assignment,
     update_assignment_date,
+    update_assignment_outline,
 )
 from gradescopeapi.classes.connection import GSConnection
 from gradescopeapi.classes.courses import Course
@@ -273,6 +279,88 @@ def update_assignment_dates(
             raise HTTPException(
                 status_code=400, detail="Failed to update assignment dates"
             )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/assignments/update_outline")
+def update_assignment_outline_endpoint(
+    course_id: str,
+    assignment_id: str,
+    assignment_outline: AssignmentOutline,
+):
+    """
+    Update the outline of an assignment (identification regions and questions).
+    ONLY FOR INSTRUCTORS.
+
+    Args:
+        course_id (str): The ID of the course.
+        assignment_id (str): The ID of the assignment.
+        assignment_outline (AssignmentOutline): The new outline. Contains
+            "question_data" (titles, weights, and crop rectangles) and an
+            "assignment" object holding the optional identification regions.
+
+    Notes:
+        Crop rectangle coordinates are percentages (0-100) of the page dimensions.
+
+    Example request body:
+        {
+            "assignment": {"identification_regions": {"name": null, "sid": null}},
+            "question_data": [
+                {"title": "Q1", "weight": 5,
+                 "crop_rect_list": [{"x1": 0, "x2": 100, "y1": 90, "y2": 100}]}
+            ]
+        }
+
+    Returns:
+        dict: A dictionary with a "message" key indicating if the assignment
+        outline was updated successfully.
+
+    Raises:
+        HTTPException: If the outline update fails, with a 400 Bad Request
+            status code and the error message "Failed to update assignment outline".
+        HTTPException: If any other exception occurs, with a 500 Internal Server
+            Error status code and the error message.
+    """
+    try:
+        outline = AssignmentOutlineData(
+            question_data=[
+                QuestionDataData(
+                    title=question.title,
+                    weight=question.weight,
+                    crop_rect_list=[
+                        CropRectData(**crop_rect.model_dump())
+                        for crop_rect in question.crop_rect_list
+                    ],
+                )
+                for question in assignment_outline.question_data
+            ],
+            identification_regions=(
+                IdentificationRegionsData(
+                    name=assignment_outline.assignment.identification_regions.name,
+                    sid=assignment_outline.assignment.identification_regions.sid,
+                )
+                if assignment_outline.assignment.identification_regions
+                else None
+            ),
+        )
+        success = update_assignment_outline(
+            session=connection.session,
+            course_id=course_id,
+            assignment_id=assignment_id,
+            assignment_outline=outline,
+        )
+        if success:
+            return {
+                "message": "Assignment outline updated successfully",
+                "status_code": status.HTTP_200_OK,
+            }
+        else:
+            raise HTTPException(
+                status_code=400, detail="Failed to update assignment outline"
+            )
+    except AssignmentUpdateError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

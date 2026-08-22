@@ -20,6 +20,7 @@ Implemented Features Include:
 - Get all extensions for an assignment in a course
 - Add/remove/modify extensions for an assignment in a course
 - Add/remove/modify dates for an assignment in a course
+- Edit an assignment's outline (identification regions and questions)
 - Upload submissions to assignments
 - Create new assignments
 - API server to interact with library without Python

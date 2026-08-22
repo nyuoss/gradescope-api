@@ -6,7 +6,7 @@ import enum
 import io
 from datetime import datetime
 
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class SubmissionType(enum.Enum):
@@ -80,6 +80,35 @@ class AssignmentDates(BaseModel):
     release_date: datetime | None = None
     due_date: datetime | None = None
     late_due_date: datetime | None = None
+
+
+class CropRect(BaseModel):
+    x1: int
+    x2: int
+    y1: int
+    y2: int
+
+
+class QuestionData(BaseModel):
+    title: str
+    weight: int
+    crop_rect_list: list[CropRect] = Field(
+        default_factory=lambda: [CropRect(x1=0, x2=100, y1=90, y2=100)]
+    )
+
+
+class IdentificationRegions(BaseModel):
+    name: str | None = None
+    sid: str | None = None
+
+
+class AssignmentOutlineAssignment(BaseModel):
+    identification_regions: IdentificationRegions | None = None
+
+
+class AssignmentOutline(BaseModel):
+    assignment: AssignmentOutlineAssignment
+    question_data: list[QuestionData]
 
 
 class FileUploadModel(BaseModel, arbitrary_types_allowed=True):
