@@ -88,17 +88,12 @@ class Account:
 
         session = self.session
 
-        try:
-            # scrape page
-            membership_resp = check_page_auth(session, membership_endpoint)
-            membership_soup = BeautifulSoup(membership_resp.text, "html.parser")
+        # scrape page
+        membership_resp = check_page_auth(session, membership_endpoint)
+        membership_soup = BeautifulSoup(membership_resp.text, "html.parser")
 
-            # get all users in the course
-            users = get_course_members(membership_soup, course_id)
-
-            return users
-        except Exception:
-            return None
+        # get all users in the course
+        return get_course_members(membership_soup, course_id)
 
     def get_assignments(self, course_id: str) -> list[Assignment]:
         """
