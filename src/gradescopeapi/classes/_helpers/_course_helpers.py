@@ -155,7 +155,9 @@ def get_course_members(soup: BeautifulSoup, course_id: str) -> list[Member]:
         # fetch other attributes: email, role, and section
         # from data attributes in button
         email = data_button.get("data-email")
-        role = id_to_role[data_button.get("data-role")]
+        # an unrecognised role id passes through as-is rather than sinking the whole roster
+        role_id = data_button.get("data-role")
+        role = id_to_role.get(role_id, role_id)
         sections = data_button.get("data-sections")  # TODO: check if this is correct
 
         # fetch user_id, only available on 'student' accounts
@@ -164,11 +166,16 @@ def get_course_members(soup: BeautifulSoup, course_id: str) -> list[Member]:
         user_id = None
         if rosterName_button is not None:
             # data-url="/courses/753413/gradebook.json?user_id=6515875"
-            data_url: str = rosterName_button.get("data-url", None)
-            user_id = data_url.split("user_id=")[-1]
+            data_url: str | None = rosterName_button.get("data-url", None)
+            if data_url is not None and "user_id=" in data_url:
+                user_id = data_url.split("user_id=")[-1]
 
-        # fetch number of submissions from table cell
-        num_submissions = int(cells[num_submissions_column].text)
+        # fetch number of submissions from table cell;
+        # the cell is blank for members who cannot submit (e.g. instructors, TAs, readers)
+        num_submissions_text = cells[num_submissions_column].text.strip()
+        num_submissions = (
+            int(num_submissions_text) if num_submissions_text.isdigit() else 0
+        )
 
         # create Member object with all relevant info
         member_list.append(
