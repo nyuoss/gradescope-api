@@ -56,9 +56,13 @@ def get_courses_info(soup: BeautifulSoup) -> dict[str, dict[str, Course]]:
                 sectionType = "student"
             # else:
         elif section.name == "div" and "courseList" in section.get("class", []):
-            for term in section.find_all("div", class_="courseList--term"):
-                # find first "a" -> course
-                course = term.find_next("a")
+            for term in section.find_all(class_="courseList--term"):
+                courses_container = term.find_next_sibling(
+                    class_="courseList--coursesForTerm"
+                )
+                if courses_container is None:
+                    continue
+                course = courses_container.find("a", class_="courseBox")
                 while course is not None:
                     # fetch course id and create new dictionary for each course
                     course_id = course["href"].split("/")[-1]
